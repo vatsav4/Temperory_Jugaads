@@ -77,6 +77,28 @@ button[type="submit"]:hover {
   background: #185fd0;
 }
 
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.date-filter label {
+  font-weight: 600;
+}
+
+.date-filter input[type="date"] {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.date-filter button[type="submit"] {
+  margin-top: 0;
+}
+
 .error {
   color: #b3261e;
   background: #fce8e6;

@@ -53,8 +53,9 @@ python app.py
 Then open http://127.0.0.1:5000 in a browser.
 
 - **New Entry**: enter the End time, loss duration (minutes), Station, Loss
-  ID (dropdown of the 8 fixed loss types), Reason, and Shift Working. Start
-  time is computed automatically as End − duration and shown live on the
-  form; `shop_id_id` is set to `3` automatically.
-- **View Entries**: lists the most recent 200 rows from the table in the
-  same Start/End/Total Loss/... layout as the dashboard, for verification.
+  ID (dropdown of the 8 fixed loss types), and Reason. Start time is
+  computed automatically as End − duration and shown live on the form;
+  `shop_id_id` is set to `3` automatically.
+- **View Entries**: pick a date (defaults to today) to see all rows in
+  `loss_table` for that day, in the same Start/End/Total Loss/... layout as
+  the dashboard.
