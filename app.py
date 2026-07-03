@@ -54,11 +54,19 @@ BEGIN
         loss_lossID_id INT NOT NULL,        -- Loss ID (see LOSS_ID_CHOICES)
         shop_id_id INT NOT NULL,
         loss_autofields_id INT NULL,
-        vc_model NVARCHAR(100) NULL,
-        created_at DATETIME NOT NULL
+        vc_model NVARCHAR(100) NULL
     )
 END
 """
+
+
+def _parse_datetime_local(raw):
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"):
+        try:
+            return datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+    raise ValueError("Invalid date/time.")
 
 
 def connect_db():
@@ -96,55 +104,51 @@ def init_db():
 @app.route("/", methods=["GET", "POST"])
 def index():
     error = None
+    saved = request.args.get("saved") == "1"
     if request.method == "POST":
         try:
-            end_time_raw = request.form["end_time"]
-            duration_minutes = float(request.form["duration_minutes"])
             typename = request.form["typename"].strip()
-            loss_id = int(request.form["loss_id"])
+            loss_id_raw = request.form.get("loss_id", "")
             loss_comments = request.form.get("loss_comments", "").strip()
 
             if not typename:
                 raise ValueError("Station is required.")
-            if duration_minutes <= 0:
-                raise ValueError("Loss duration must be greater than 0.")
+            if not loss_id_raw:
+                raise ValueError("Please select a loss type.")
+            loss_id = int(loss_id_raw)
             if loss_id not in LOSS_ID_CHOICES:
-                raise ValueError("Invalid Loss ID selected.")
+                raise ValueError("Invalid loss type selected.")
 
-            try:
-                end_time = datetime.strptime(end_time_raw, "%Y-%m-%dT%H:%M:%S")
-            except ValueError:
-                end_time = datetime.strptime(end_time_raw, "%Y-%m-%dT%H:%M")
-            loss_duration_seconds = round(duration_minutes * 60)
-            start_time = end_time - timedelta(seconds=loss_duration_seconds)
+            start_time = _parse_datetime_local(request.form["start_time"])
+            end_time = _parse_datetime_local(request.form["end_time"])
+            if end_time <= start_time:
+                raise ValueError("Loss End must be after Loss Start.")
+            loss_duration_seconds = round((end_time - start_time).total_seconds())
 
             db = get_db()
             db.execute(
                 f"""
                 INSERT INTO {SQL_TABLE} (
-                    loss_date_time, log_date_time, typename, loss_duration,
-                    loss_comments, loss_lossID_id, shop_id_id,
-                    created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    loss_date_time, typename, loss_duration,
+                    loss_comments, loss_lossID_id, shop_id_id
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     end_time,
-                    start_time,
                     typename,
                     loss_duration_seconds,
                     loss_comments,
                     loss_id,
                     SHOP_ID,
-                    datetime.now(),
                 ),
             )
             db.commit()
-            return redirect(url_for("entries"))
+            return redirect(url_for("index", saved=1))
         except (KeyError, ValueError) as exc:
             error = str(exc) or "Please fill in all required fields correctly."
 
     return render_template(
-        "index.html", error=error, loss_id_choices=LOSS_ID_CHOICES
+        "index.html", error=error, saved=saved, loss_id_choices=LOSS_ID_CHOICES
     )
 
 
