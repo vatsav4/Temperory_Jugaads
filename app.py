@@ -194,6 +194,12 @@ def entries():
 
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
+    # Default port changed from Flask's usual 5000: on Windows, 5000 (and
+    # other common ports) can fall inside a Hyper-V/WSL2 excluded port
+    # range, causing "WinError 10013: forbidden by its access permissions"
+    # when the dev server tries to bind. Override with FLASK_RUN_PORT if
+    # this one is also blocked.
+    port = int(os.environ.get("FLASK_RUN_PORT", 5051))
+    app.run(host="127.0.0.1", port=port, debug=True)
 else:
     init_db()
