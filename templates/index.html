@@ -1,44 +1,101 @@
 {% extends "base.html" %}
-{% block title %}New Loss Log Entry{% endblock %}
+{% block title %}Loss Log{% endblock %}
 {% block content %}
   {% if saved %}
-    <p class="success">Entry saved. You can add another below.</p>
+    <p class="success">Entry saved. Showing entries for {{ selected_date }}.</p>
   {% endif %}
   {% if error %}
     <p class="error">{{ error }}</p>
   {% endif %}
 
-  <form method="post" class="loss-form">
-    <label for="typename">Station</label>
-    <input type="text" id="typename" name="typename" placeholder="e.g. Type 1009" required autofocus>
-
-    <label>Loss Type</label>
-    <div class="loss-type-grid">
-      {% for id, text in loss_id_choices.items() %}
-      <input type="radio" id="loss_id_{{ id }}" name="loss_id" value="{{ id }}" required>
-      <label for="loss_id_{{ id }}" class="loss-type-card">{{ text }}</label>
-      {% endfor %}
-    </div>
-
-    <label for="start_time">Loss Start</label>
-    <div class="time-row">
-      <input type="datetime-local" id="start_time" name="start_time" step="60" required>
-      <button type="button" class="now-btn" data-target="start_time">Now</button>
-    </div>
-
-    <label for="end_time">Loss End</label>
-    <div class="time-row">
-      <input type="datetime-local" id="end_time" name="end_time" step="60" required>
-      <button type="button" class="now-btn" data-target="end_time">Now</button>
-    </div>
-
-    <p class="hint" id="computed-duration"></p>
-
-    <label for="loss_comments">Reason <span class="optional">(optional)</span></label>
-    <input type="text" id="loss_comments" name="loss_comments" placeholder="e.g. Battery shortage">
-
-    <button type="submit" class="save-btn">Save Entry</button>
+  <form method="get" class="date-filter">
+    <label for="date">Date</label>
+    <input type="date" id="date" name="date" value="{{ selected_date }}">
+    <button type="submit">Show</button>
   </form>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Start</th>
+          <th>End</th>
+          <th>Total Loss</th>
+          <th>Station</th>
+          <th>Loss_Description</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td>{{ e.start }}</td>
+          <td>{{ e.end }}</td>
+          <td>{{ e.total_loss }}</td>
+          <td>{{ e.typename }}</td>
+          <td>{{ e.loss_description }}</td>
+          <td>{{ e.loss_comments }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No entries for {{ selected_date }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <details class="add-entry" {% if error %}open{% endif %}>
+    <summary>+ Add New Entry</summary>
+
+    <form method="post" class="loss-form">
+      <label for="typename">Station</label>
+      <input type="text" id="typename" name="typename" placeholder="e.g. Type 1009" required>
+
+      <label>Loss Type</label>
+      <div class="loss-type-grid">
+        {% for id, text in loss_id_choices.items() %}
+        <input type="radio" id="loss_id_{{ id }}" name="loss_id" value="{{ id }}" required>
+        <label for="loss_id_{{ id }}" class="loss-type-card">{{ text }}</label>
+        {% endfor %}
+      </div>
+
+      <label for="start_time">Loss Start</label>
+      <div class="time-row">
+        <input type="datetime-local" id="start_time" name="start_time" step="60" required>
+        <button type="button" class="now-btn" data-target="start_time">Now</button>
+      </div>
+
+      <label for="end_time">Loss End</label>
+      <div class="time-row">
+        <input type="datetime-local" id="end_time" name="end_time" step="60" required>
+        <button type="button" class="now-btn" data-target="end_time">Now</button>
+      </div>
+
+      <p class="hint" id="computed-duration"></p>
+
+      <label for="loss_comments">Reason <span class="optional">(optional)</span></label>
+      <input type="text" id="loss_comments" name="loss_comments" placeholder="e.g. Battery shortage">
+
+      <h3 class="section-heading">Additional SQL fields</h3>
+      <p class="hint">Fill in whatever you know for this event — leave blank for NULL.</p>
+
+      <div class="extra-fields-grid">
+        {% for field in extra_int_fields %}
+        <div class="extra-field">
+          <label for="{{ field }}">{{ field_labels.get(field, field) }}</label>
+          <input type="text" inputmode="numeric" id="{{ field }}" name="{{ field }}">
+        </div>
+        {% endfor %}
+        {% for field in extra_text_fields %}
+        <div class="extra-field">
+          <label for="{{ field }}">{{ field_labels.get(field, field) }}</label>
+          <input type="text" id="{{ field }}" name="{{ field }}">
+        </div>
+        {% endfor %}
+      </div>
+
+      <button type="submit" class="save-btn">Save Entry</button>
+    </form>
+  </details>
 
   <script>
     const startInput = document.getElementById('start_time');

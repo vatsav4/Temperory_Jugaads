@@ -32,6 +32,38 @@ LOSS_ID_CHOICES = {
     32: "Material Supply",
 }
 
+# Remaining columns on dbo.loss_table that don't have an obvious
+# manual-entry value. Exposed directly on the form so the person entering
+# data can type in the real values, instead of the app guessing defaults.
+EXTRA_INT_FIELDS = [
+    "messageno",
+    "loss_plcclass",
+    "loss_plctype",
+    "revision",
+    "counter",
+    "action_flag",
+    "loss_assignid_id",
+]
+EXTRA_TEXT_FIELDS = [
+    "classname",
+    "loss_plctext",
+    "loss_autofields_id",
+    "vc_model",
+]
+FIELD_LABELS = {
+    "messageno": "Message No.",
+    "loss_plcclass": "PLC Class",
+    "loss_plctype": "PLC Type",
+    "revision": "Revision",
+    "counter": "Counter",
+    "action_flag": "Action Flag",
+    "loss_assignid_id": "Assign ID",
+    "classname": "Class Name",
+    "loss_plctext": "PLC Text",
+    "loss_autofields_id": "Auto Fields ID",
+    "vc_model": "VC Model",
+}
+
 CREATE_TABLE_SQL = f"""
 IF OBJECT_ID(N'{SQL_TABLE}', N'U') IS NULL
 BEGIN
@@ -48,12 +80,12 @@ BEGIN
         loss_plcclass INT NULL,
         loss_plctype INT NULL,
         revision INT NULL,
-        counter INT NULL,
+        counter BIGINT NULL,
         action_flag INT NULL,
         loss_assignid_id INT NULL,
         loss_lossID_id INT NOT NULL,        -- Loss ID (see LOSS_ID_CHOICES)
         shop_id_id INT NOT NULL,
-        loss_autofields_id INT NULL,
+        loss_autofields_id NVARCHAR(50) NULL,
         vc_model NVARCHAR(100) NULL
     )
 END
@@ -101,61 +133,7 @@ def init_db():
     conn.close()
 
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    error = None
-    saved = request.args.get("saved") == "1"
-    if request.method == "POST":
-        try:
-            typename = request.form["typename"].strip()
-            loss_id_raw = request.form.get("loss_id", "")
-            loss_comments = request.form.get("loss_comments", "").strip()
-
-            if not typename:
-                raise ValueError("Station is required.")
-            if not loss_id_raw:
-                raise ValueError("Please select a loss type.")
-            loss_id = int(loss_id_raw)
-            if loss_id not in LOSS_ID_CHOICES:
-                raise ValueError("Invalid loss type selected.")
-
-            start_time = _parse_datetime_local(request.form["start_time"])
-            end_time = _parse_datetime_local(request.form["end_time"])
-            if end_time <= start_time:
-                raise ValueError("Loss End must be after Loss Start.")
-            loss_duration_seconds = round((end_time - start_time).total_seconds())
-
-            db = get_db()
-            db.execute(
-                f"""
-                INSERT INTO {SQL_TABLE} (
-                    loss_date_time, log_date_time, typename, loss_duration,
-                    loss_comments, loss_lossID_id, shop_id_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    end_time,
-                    datetime.now(),
-                    typename,
-                    loss_duration_seconds,
-                    loss_comments,
-                    loss_id,
-                    SHOP_ID,
-                ),
-            )
-            db.commit()
-            return redirect(url_for("index", saved=1))
-        except (KeyError, ValueError) as exc:
-            error = str(exc) or "Please fill in all required fields correctly."
-
-    return render_template(
-        "index.html", error=error, saved=saved, loss_id_choices=LOSS_ID_CHOICES
-    )
-
-
-@app.route("/entries")
-def entries():
-    date_str = request.args.get("date", "").strip()
+def fetch_entries_for_date(date_str):
     try:
         selected_date = datetime.strptime(date_str, "%Y-%m-%d")
     except ValueError:
@@ -193,8 +171,86 @@ def entries():
                 "loss_comments": row.loss_comments,
             }
         )
+    return date_str, computed
 
-    return render_template("entries.html", entries=computed, selected_date=date_str)
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    error = None
+    saved = request.args.get("saved") == "1"
+    date_str = request.args.get("date", "").strip()
+
+    if request.method == "POST":
+        try:
+            typename = request.form["typename"].strip()
+            loss_id_raw = request.form.get("loss_id", "")
+            loss_comments = request.form.get("loss_comments", "").strip()
+
+            if not typename:
+                raise ValueError("Station is required.")
+            if not loss_id_raw:
+                raise ValueError("Please select a loss type.")
+            loss_id = int(loss_id_raw)
+            if loss_id not in LOSS_ID_CHOICES:
+                raise ValueError("Invalid loss type selected.")
+
+            start_time = _parse_datetime_local(request.form["start_time"])
+            end_time = _parse_datetime_local(request.form["end_time"])
+            if end_time <= start_time:
+                raise ValueError("Loss End must be after Loss Start.")
+            loss_duration_seconds = round((end_time - start_time).total_seconds())
+
+            extra_values = {}
+            for field in EXTRA_INT_FIELDS:
+                raw = request.form.get(field, "").strip()
+                if raw:
+                    try:
+                        extra_values[field] = int(raw)
+                    except ValueError:
+                        raise ValueError(f"{field} must be a whole number.")
+                else:
+                    extra_values[field] = None
+            for field in EXTRA_TEXT_FIELDS:
+                raw = request.form.get(field, "").strip()
+                extra_values[field] = raw or None
+
+            columns = [
+                "loss_date_time", "log_date_time", "typename", "loss_duration",
+                "loss_comments", "loss_lossID_id", "shop_id_id",
+            ] + EXTRA_INT_FIELDS + EXTRA_TEXT_FIELDS
+            values = (
+                end_time, datetime.now(), typename, loss_duration_seconds,
+                loss_comments, loss_id, SHOP_ID,
+            ) + tuple(extra_values[f] for f in EXTRA_INT_FIELDS) + tuple(
+                extra_values[f] for f in EXTRA_TEXT_FIELDS
+            )
+            placeholders = ", ".join(["?"] * len(columns))
+
+            db = get_db()
+            db.execute(
+                f"INSERT INTO {SQL_TABLE} ({', '.join(columns)}) VALUES ({placeholders})",
+                values,
+            )
+            db.commit()
+            return redirect(
+                url_for("index", date=end_time.strftime("%Y-%m-%d"), saved=1)
+            )
+        except (KeyError, ValueError) as exc:
+            error = str(exc) or "Please fill in all required fields correctly."
+
+    date_str, entries = fetch_entries_for_date(date_str)
+
+    return render_template(
+        "index.html",
+        error=error,
+        saved=saved,
+        loss_id_choices=LOSS_ID_CHOICES,
+        selected_date=date_str,
+        entries=entries,
+        extra_int_fields=EXTRA_INT_FIELDS,
+        extra_text_fields=EXTRA_TEXT_FIELDS,
+        field_labels=FIELD_LABELS,
+    )
 
 
 if __name__ == "__main__":

@@ -50,12 +50,22 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Then open http://127.0.0.1:5000 in a browser.
+Then open http://127.0.0.1:5051 in a browser (see below for why not 5000).
 
-- **New Entry**: enter the End time, loss duration (minutes), Station, Loss
-  ID (dropdown of the 8 fixed loss types), and Reason. Start time is
-  computed automatically as End − duration and shown live on the form;
-  `shop_id_id` is set to `3` automatically.
-- **View Entries**: pick a date (defaults to today) to see all rows in
+Single page (`/`):
+
+- **Entries table**: pick a date (defaults to today) to see all rows in
   `loss_table` for that day, in the same Start/End/Total Loss/... layout as
   the dashboard.
+- **+ Add New Entry** (expandable section below the table): Station, Loss
+  Type (tap one of the 8 cards), Loss Start / Loss End (with one-tap "Now"
+  buttons — duration is computed live), and Reason. `log_date_time` is set
+  automatically to the moment you hit Save; `shop_id_id` is set to `3`
+  automatically.
+- **Additional SQL fields**: the rest of `loss_table`'s columns
+  (`messageno`, `classname`, `loss_plctext`, `loss_plcclass`, `loss_plctype`,
+  `revision`, `counter`, `action_flag`, `loss_assignid_id`,
+  `loss_autofields_id`, `vc_model`) are exposed as plain inputs at the
+  bottom of the form — fill in whatever you know for that event; anything
+  left blank is stored as `NULL`. After saving you're taken back to the
+  list for that entry's date so you can confirm it landed correctly.
