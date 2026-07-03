@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Loss Log Entries{% endblock %}
+{% block content %}
+  <table>
+    <thead>
+      <tr>
+        <th>Start</th>
+        <th>End</th>
+        <th>Total Loss</th>
+        <th>Shift Working</th>
+        <th>Station</th>
+        <th>Loss_Description</th>
+        <th>Reason</th>
+        <th>Line_Name</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td>{{ e.start }}</td>
+        <td>{{ e.end }}</td>
+        <td>{{ e.total_loss }}</td>
+        <td>{{ e.shift_working }}</td>
+        <td>{{ e.typename }}</td>
+        <td>{{ e.loss_description }}</td>
+        <td>{{ e.loss_comments }}</td>
+        <td>{{ e.line_name }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8">No entries yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

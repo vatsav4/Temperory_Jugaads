@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}New Loss Log Entry{% endblock %}
+{% block content %}
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% endif %}
+  <form method="post" class="loss-form">
+    <label for="end_time">End time</label>
+    <input type="datetime-local" id="end_time" name="end_time" step="1" required>
+
+    <label for="duration_minutes">Loss duration (minutes)</label>
+    <input type="number" id="duration_minutes" name="duration_minutes" step="0.01" min="0.01" required>
+
+    <p class="hint">Start time = End time − Loss duration. It will be computed automatically.</p>
+    <p class="hint" id="computed-start"></p>
+
+    <label for="typename">Station (e.g. Type 1009)</label>
+    <input type="text" id="typename" name="typename" required>
+
+    <label for="loss_description">Loss Description (e.g. Material Supply)</label>
+    <input type="text" id="loss_description" name="loss_description">
+
+    <label for="loss_comments">Reason (e.g. Battery shortage)</label>
+    <input type="text" id="loss_comments" name="loss_comments">
+
+    <label for="line_name">Line Name (e.g. MHCV)</label>
+    <input type="text" id="line_name" name="line_name">
+
+    <label for="shift_working">Shift Working</label>
+    <select id="shift_working" name="shift_working">
+      <option value="Yes" selected>Yes</option>
+      <option value="No">No</option>
+    </select>
+
+    <button type="submit">Save Entry</button>
+  </form>
+
+  <script>
+    const endInput = document.getElementById('end_time');
+    const durInput = document.getElementById('duration_minutes');
+    const out = document.getElementById('computed-start');
+
+    function updateStart() {
+      if (!endInput.value || !durInput.value) {
+        out.textContent = '';
+        return;
+      }
+      const end = new Date(endInput.value);
+      const start = new Date(end.getTime() - parseFloat(durInput.value) * 60000);
+      if (isNaN(start.getTime())) {
+        out.textContent = '';
+        return;
+      }
+      out.textContent = 'Computed start time: ' + start.toLocaleString();
+    }
+
+    endInput.addEventListener('input', updateStart);
+    durInput.addEventListener('input', updateStart);
+  </script>
+{% endblock %}
