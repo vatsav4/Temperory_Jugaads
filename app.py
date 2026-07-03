@@ -7,11 +7,10 @@ from flask import Flask, g, redirect, render_template, request, url_for
 app = Flask(__name__)
 
 # --- SQL Server connection -------------------------------------------------
-# Same server used previously by the loss_logger app. DB_NAME / TABLE_NAME
-# below are placeholders — swap them for the real database/table names.
+# Same server used previously by the loss_logger app.
 SQL_SERVER = "172.25.250.70"
-SQL_DATABASE = "SampleDatabase"          # TODO: set actual database name
-SQL_TABLE = "dbo.SampleLossLogTable"     # TODO: set actual table name
+SQL_DATABASE = "industry4_157"
+SQL_TABLE = "dbo.loss_table"
 
 SQL_USERNAME = os.environ.get("SQL_USERNAME", "REPLACE_USERNAME")
 SQL_PASSWORD = os.environ.get("SQL_PASSWORD", "REPLACE_PASSWORD")

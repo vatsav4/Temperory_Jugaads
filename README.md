@@ -21,14 +21,14 @@ feeds the dashboard. Its columns map to the dashboard as follows:
 ## Database setup
 
 This app connects to the same MSSQL Server previously used by the
-`loss_logger` app, via `pyodbc` + a SQL Server login. Before running it,
-edit these constants at the top of `app.py`:
+`loss_logger` app, via `pyodbc` + a SQL Server login:
 
-- `SQL_DATABASE` — currently `"SampleDatabase"` (placeholder)
-- `SQL_TABLE` — currently `"dbo.SampleLossLogTable"` (placeholder)
+- `SQL_SERVER = "172.25.250.70"`
+- `SQL_DATABASE = "industry4_157"`
+- `SQL_TABLE = "dbo.loss_table"`
+- `SHOP_ID = 3`
 
-The server (`SQL_SERVER = "172.25.250.70"`) and `SHOP_ID = 3` are already
-set. Credentials are read from environment variables and must not be
+Credentials are read from environment variables and must not be
 committed to the repo:
 
 ```bash
