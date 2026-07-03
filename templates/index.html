@@ -1,56 +1,90 @@
 {% extends "base.html" %}
 {% block title %}New Loss Log Entry{% endblock %}
 {% block content %}
+  {% if saved %}
+    <p class="success">Entry saved. You can add another below.</p>
+  {% endif %}
   {% if error %}
     <p class="error">{{ error }}</p>
   {% endif %}
+
   <form method="post" class="loss-form">
-    <label for="end_time">End time</label>
-    <input type="datetime-local" id="end_time" name="end_time" step="1" required>
+    <label for="typename">Station</label>
+    <input type="text" id="typename" name="typename" placeholder="e.g. Type 1009" required autofocus>
 
-    <label for="duration_minutes">Loss duration (minutes)</label>
-    <input type="number" id="duration_minutes" name="duration_minutes" step="0.01" min="0.01" required>
-
-    <p class="hint">Start time = End time − Loss duration. It will be computed automatically.</p>
-    <p class="hint" id="computed-start"></p>
-
-    <label for="typename">Station (e.g. Type 1009)</label>
-    <input type="text" id="typename" name="typename" required>
-
-    <label for="loss_id">Loss ID / Description</label>
-    <select id="loss_id" name="loss_id" required>
-      <option value="" disabled selected>Select a loss type…</option>
+    <label>Loss Type</label>
+    <div class="loss-type-grid">
       {% for id, text in loss_id_choices.items() %}
-      <option value="{{ id }}">{{ id }} — {{ text }}</option>
+      <input type="radio" id="loss_id_{{ id }}" name="loss_id" value="{{ id }}" required>
+      <label for="loss_id_{{ id }}" class="loss-type-card">{{ text }}</label>
       {% endfor %}
-    </select>
+    </div>
 
-    <label for="loss_comments">Reason (e.g. Battery shortage)</label>
-    <input type="text" id="loss_comments" name="loss_comments">
+    <label for="start_time">Loss Start</label>
+    <div class="time-row">
+      <input type="datetime-local" id="start_time" name="start_time" step="60" required>
+      <button type="button" class="now-btn" data-target="start_time">Now</button>
+    </div>
 
-    <button type="submit">Save Entry</button>
+    <label for="end_time">Loss End</label>
+    <div class="time-row">
+      <input type="datetime-local" id="end_time" name="end_time" step="60" required>
+      <button type="button" class="now-btn" data-target="end_time">Now</button>
+    </div>
+
+    <p class="hint" id="computed-duration"></p>
+
+    <label for="loss_comments">Reason <span class="optional">(optional)</span></label>
+    <input type="text" id="loss_comments" name="loss_comments" placeholder="e.g. Battery shortage">
+
+    <button type="submit" class="save-btn">Save Entry</button>
   </form>
 
   <script>
+    const startInput = document.getElementById('start_time');
     const endInput = document.getElementById('end_time');
-    const durInput = document.getElementById('duration_minutes');
-    const out = document.getElementById('computed-start');
+    const durationOut = document.getElementById('computed-duration');
 
-    function updateStart() {
-      if (!endInput.value || !durInput.value) {
-        out.textContent = '';
-        return;
-      }
-      const end = new Date(endInput.value);
-      const start = new Date(end.getTime() - parseFloat(durInput.value) * 60000);
-      if (isNaN(start.getTime())) {
-        out.textContent = '';
-        return;
-      }
-      out.textContent = 'Computed start time: ' + start.toLocaleString();
+    function toLocalInputValue(date) {
+      const offsetMs = date.getTimezoneOffset() * 60000;
+      return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
     }
 
-    endInput.addEventListener('input', updateStart);
-    durInput.addEventListener('input', updateStart);
+    document.querySelectorAll('.now-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = document.getElementById(btn.dataset.target);
+        const now = new Date();
+        now.setSeconds(0, 0);
+        target.value = toLocalInputValue(now);
+        updateDuration();
+      });
+    });
+
+    function updateDuration() {
+      if (!startInput.value || !endInput.value) {
+        durationOut.textContent = '';
+        return;
+      }
+      const start = new Date(startInput.value);
+      const end = new Date(endInput.value);
+      const diffMs = end - start;
+      if (isNaN(diffMs)) {
+        durationOut.textContent = '';
+        return;
+      }
+      if (diffMs <= 0) {
+        durationOut.textContent = 'End time must be after start time.';
+        durationOut.classList.add('warning');
+        return;
+      }
+      durationOut.classList.remove('warning');
+      const totalSeconds = Math.round(diffMs / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      durationOut.textContent = `Duration: ${minutes} min ${seconds} sec`;
+    }
+
+    startInput.addEventListener('input', updateDuration);
+    endInput.addEventListener('input', updateDuration);
   </script>
 {% endblock %}
