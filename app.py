@@ -1,50 +1,83 @@
 import os
-import sqlite3
 from datetime import datetime, timedelta
 
+import pyodbc
 from flask import Flask, g, redirect, render_template, request, url_for
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "loss_log.db")
 
 app = Flask(__name__)
 
-# Same columns as the Loss_Log_ShortCut.xlsx export of the SQL table, plus
-# loss_description / line_name which are free-text stand-ins for the values
-# that normally come from lookup tables joined in by the Power BI report.
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS loss_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    loss_date_time TEXT NOT NULL,      -- End (from SQL table)
-    messageno INTEGER,
-    log_date_time TEXT,
-    typename TEXT NOT NULL,            -- Station
-    classname TEXT,
-    loss_duration INTEGER NOT NULL,    -- seconds; Total Loss (min) = loss_duration / 60
-    loss_comments TEXT,                -- Reason
-    loss_plctext TEXT,
-    loss_plcclass INTEGER,
-    loss_plctype INTEGER,
-    revision INTEGER,
-    counter INTEGER,
-    action_flag INTEGER,
-    loss_assignid_id INTEGER,
-    loss_lossID_id INTEGER,
-    shop_id_id INTEGER,
-    loss_autofields_id INTEGER,
-    vc_model TEXT,
-    loss_description TEXT,             -- Loss_Description
-    line_name TEXT,                    -- Line_Name
-    shift_working TEXT,                -- Yes/No
-    created_at TEXT NOT NULL
-);
+# --- SQL Server connection -------------------------------------------------
+# Same server used previously by the loss_logger app. DB_NAME / TABLE_NAME
+# below are placeholders — swap them for the real database/table names.
+SQL_SERVER = "172.25.250.70"
+SQL_DATABASE = "SampleDatabase"          # TODO: set actual database name
+SQL_TABLE = "dbo.SampleLossLogTable"     # TODO: set actual table name
+
+SQL_USERNAME = os.environ.get("SQL_USERNAME", "REPLACE_USERNAME")
+SQL_PASSWORD = os.environ.get("SQL_PASSWORD", "REPLACE_PASSWORD")
+
+ODBC_DRIVER = "ODBC Driver 17 for SQL Server"
+
+# shop_id_id is fixed for this page (this form only serves one shop/line).
+SHOP_ID = 3
+
+# The 8 loss types (loss_lossID_id -> display text), from the lookup table.
+LOSS_ID_CHOICES = {
+    1: "Breakdown/ Facility Constraint",
+    3: "Short / Stoppages",
+    4: "Late Start/ Early Stoppage of Production",
+    5: "Defects/ Repair/ Rework",
+    6: "Model Change/ Tool Change",
+    7: "Due to Operator",
+    8: "New Product Introduction",
+    32: "Material Supply",
+}
+
+CREATE_TABLE_SQL = f"""
+IF OBJECT_ID(N'{SQL_TABLE}', N'U') IS NULL
+BEGIN
+    CREATE TABLE {SQL_TABLE} (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        loss_date_time DATETIME NOT NULL,   -- End
+        messageno INT NULL,
+        log_date_time DATETIME NULL,
+        typename NVARCHAR(100) NOT NULL,    -- Station
+        classname NVARCHAR(100) NULL,
+        loss_duration INT NOT NULL,         -- seconds; Total Loss (min) = loss_duration / 60
+        loss_comments NVARCHAR(255) NULL,   -- Reason
+        loss_plctext NVARCHAR(255) NULL,
+        loss_plcclass INT NULL,
+        loss_plctype INT NULL,
+        revision INT NULL,
+        counter INT NULL,
+        action_flag INT NULL,
+        loss_assignid_id INT NULL,
+        loss_lossID_id INT NOT NULL,        -- Loss ID (see LOSS_ID_CHOICES)
+        shop_id_id INT NOT NULL,
+        loss_autofields_id INT NULL,
+        vc_model NVARCHAR(100) NULL,
+        shift_working NVARCHAR(3) NULL,
+        created_at DATETIME NOT NULL
+    )
+END
 """
+
+
+def connect_db():
+    conn_str = (
+        f"DRIVER={{{ODBC_DRIVER}}};"
+        f"SERVER={SQL_SERVER};"
+        f"DATABASE={SQL_DATABASE};"
+        f"UID={SQL_USERNAME};"
+        f"PWD={SQL_PASSWORD};"
+        f"TrustServerCertificate=yes;"
+    )
+    return pyodbc.connect(conn_str)
 
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
+        g.db = connect_db()
     return g.db
 
 
@@ -56,8 +89,8 @@ def close_db(exception=None):
 
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute(SCHEMA)
+    conn = connect_db()
+    conn.execute(CREATE_TABLE_SQL)
     conn.commit()
     conn.close()
 
@@ -70,15 +103,16 @@ def index():
             end_time_raw = request.form["end_time"]
             duration_minutes = float(request.form["duration_minutes"])
             typename = request.form["typename"].strip()
-            loss_description = request.form.get("loss_description", "").strip()
+            loss_id = int(request.form["loss_id"])
             loss_comments = request.form.get("loss_comments", "").strip()
-            line_name = request.form.get("line_name", "").strip()
             shift_working = request.form.get("shift_working", "Yes")
 
             if not typename:
                 raise ValueError("Station is required.")
             if duration_minutes <= 0:
                 raise ValueError("Loss duration must be greater than 0.")
+            if loss_id not in LOSS_ID_CHOICES:
+                raise ValueError("Invalid Loss ID selected.")
 
             try:
                 end_time = datetime.strptime(end_time_raw, "%Y-%m-%dT%H:%M:%S")
@@ -89,23 +123,23 @@ def index():
 
             db = get_db()
             db.execute(
-                """
-                INSERT INTO loss_log (
+                f"""
+                INSERT INTO {SQL_TABLE} (
                     loss_date_time, log_date_time, typename, loss_duration,
-                    loss_comments, loss_description, line_name, shift_working,
+                    loss_comments, loss_lossID_id, shop_id_id, shift_working,
                     created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    end_time.isoformat(sep=" "),
-                    start_time.isoformat(sep=" "),
+                    end_time,
+                    start_time,
                     typename,
                     loss_duration_seconds,
                     loss_comments,
-                    loss_description,
-                    line_name,
+                    loss_id,
+                    SHOP_ID,
                     shift_working,
-                    datetime.now().isoformat(sep=" "),
+                    datetime.now(),
                 ),
             )
             db.commit()
@@ -113,31 +147,38 @@ def index():
         except (KeyError, ValueError) as exc:
             error = str(exc) or "Please fill in all required fields correctly."
 
-    return render_template("index.html", error=error)
+    return render_template(
+        "index.html", error=error, loss_id_choices=LOSS_ID_CHOICES
+    )
 
 
 @app.route("/entries")
 def entries():
     db = get_db()
     rows = db.execute(
-        "SELECT * FROM loss_log ORDER BY loss_date_time DESC"
+        f"""
+        SELECT TOP 200 loss_date_time, loss_duration, shift_working, typename,
+               loss_lossID_id, loss_comments
+        FROM {SQL_TABLE}
+        ORDER BY loss_date_time DESC
+        """
     ).fetchall()
 
     computed = []
     for row in rows:
-        end_time = datetime.fromisoformat(row["loss_date_time"])
-        start_time = end_time - timedelta(seconds=row["loss_duration"])
+        end_time = row.loss_date_time
+        start_time = end_time - timedelta(seconds=row.loss_duration)
         computed.append(
             {
-                "id": row["id"],
                 "start": start_time.strftime("%m/%d/%Y %I:%M:%S %p"),
                 "end": end_time.strftime("%m/%d/%Y %I:%M:%S %p"),
-                "total_loss": round(row["loss_duration"] / 60, 2),
-                "shift_working": row["shift_working"],
-                "typename": row["typename"],
-                "loss_description": row["loss_description"],
-                "loss_comments": row["loss_comments"],
-                "line_name": row["line_name"],
+                "total_loss": round(row.loss_duration / 60, 2),
+                "shift_working": row.shift_working,
+                "typename": row.typename,
+                "loss_description": LOSS_ID_CHOICES.get(
+                    row.loss_lossID_id, row.loss_lossID_id
+                ),
+                "loss_comments": row.loss_comments,
             }
         )
 

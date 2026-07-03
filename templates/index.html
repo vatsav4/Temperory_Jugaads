@@ -17,14 +17,16 @@
     <label for="typename">Station (e.g. Type 1009)</label>
     <input type="text" id="typename" name="typename" required>
 
-    <label for="loss_description">Loss Description (e.g. Material Supply)</label>
-    <input type="text" id="loss_description" name="loss_description">
+    <label for="loss_id">Loss ID / Description</label>
+    <select id="loss_id" name="loss_id" required>
+      <option value="" disabled selected>Select a loss type…</option>
+      {% for id, text in loss_id_choices.items() %}
+      <option value="{{ id }}">{{ id }} — {{ text }}</option>
+      {% endfor %}
+    </select>
 
     <label for="loss_comments">Reason (e.g. Battery shortage)</label>
     <input type="text" id="loss_comments" name="loss_comments">
-
-    <label for="line_name">Line Name (e.g. MHCV)</label>
-    <input type="text" id="line_name" name="line_name">
 
     <label for="shift_working">Shift Working</label>
     <select id="shift_working" name="shift_working">
