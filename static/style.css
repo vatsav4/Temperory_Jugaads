@@ -29,12 +29,17 @@ nav a:hover {
 }
 
 main {
-  max-width: 640px;
+  max-width: 760px;
   margin: 2rem auto;
   background: #fff;
   padding: 1.5rem 1.75rem 2rem;
   border-radius: 10px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
 }
 
 .loss-form {
@@ -192,6 +197,67 @@ button[type="submit"]:hover {
   margin-top: 0;
 }
 
+.add-entry {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.25rem 1rem 1rem;
+}
+
+.add-entry summary {
+  cursor: pointer;
+  padding: 0.85rem 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1f6feb;
+  list-style: none;
+}
+
+.add-entry summary::-webkit-details-marker {
+  display: none;
+}
+
+.add-entry summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.4rem;
+  transition: transform 0.15s ease;
+}
+
+.add-entry[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.section-heading {
+  margin: 1.75rem 0 0.25rem;
+  font-size: 1.05rem;
+  border-top: 1px solid #eee;
+  padding-top: 1.25rem;
+}
+
+.extra-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1rem;
+  margin-top: 0.5rem;
+}
+
+.extra-field label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-top: 0;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.extra-field input {
+  padding: 0.55rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .error {
   color: #b3261e;
   background: #fce8e6;
@@ -236,5 +302,9 @@ th {
 
   .time-row {
     flex-direction: column;
+  }
+
+  .extra-fields-grid {
+    grid-template-columns: 1fr;
   }
 }
