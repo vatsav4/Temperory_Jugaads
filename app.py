@@ -129,12 +129,13 @@ def index():
             db.execute(
                 f"""
                 INSERT INTO {SQL_TABLE} (
-                    loss_date_time, typename, loss_duration,
+                    loss_date_time, log_date_time, typename, loss_duration,
                     loss_comments, loss_lossID_id, shop_id_id
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     end_time,
+                    datetime.now(),
                     typename,
                     loss_duration_seconds,
                     loss_comments,
