@@ -1,13 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Loss Log Entries{% endblock %}
 {% block content %}
+  <form method="get" class="date-filter">
+    <label for="date">Date</label>
+    <input type="date" id="date" name="date" value="{{ selected_date }}">
+    <button type="submit">Show</button>
+  </form>
+
   <table>
     <thead>
       <tr>
         <th>Start</th>
         <th>End</th>
         <th>Total Loss</th>
-        <th>Shift Working</th>
         <th>Station</th>
         <th>Loss_Description</th>
         <th>Reason</th>
@@ -19,13 +24,12 @@
         <td>{{ e.start }}</td>
         <td>{{ e.end }}</td>
         <td>{{ e.total_loss }}</td>
-        <td>{{ e.shift_working }}</td>
         <td>{{ e.typename }}</td>
         <td>{{ e.loss_description }}</td>
         <td>{{ e.loss_comments }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="7">No entries yet.</td></tr>
+      <tr><td colspan="6">No entries for {{ selected_date }}.</td></tr>
       {% endfor %}
     </tbody>
   </table>

@@ -55,7 +55,6 @@ BEGIN
         shop_id_id INT NOT NULL,
         loss_autofields_id INT NULL,
         vc_model NVARCHAR(100) NULL,
-        shift_working NVARCHAR(3) NULL,
         created_at DATETIME NOT NULL
     )
 END
@@ -104,7 +103,6 @@ def index():
             typename = request.form["typename"].strip()
             loss_id = int(request.form["loss_id"])
             loss_comments = request.form.get("loss_comments", "").strip()
-            shift_working = request.form.get("shift_working", "Yes")
 
             if not typename:
                 raise ValueError("Station is required.")
@@ -125,9 +123,9 @@ def index():
                 f"""
                 INSERT INTO {SQL_TABLE} (
                     loss_date_time, log_date_time, typename, loss_duration,
-                    loss_comments, loss_lossID_id, shop_id_id, shift_working,
+                    loss_comments, loss_lossID_id, shop_id_id,
                     created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     end_time,
@@ -137,7 +135,6 @@ def index():
                     loss_comments,
                     loss_id,
                     SHOP_ID,
-                    shift_working,
                     datetime.now(),
                 ),
             )
@@ -153,14 +150,26 @@ def index():
 
 @app.route("/entries")
 def entries():
+    date_str = request.args.get("date", "").strip()
+    try:
+        selected_date = datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        selected_date = datetime.now()
+    date_str = selected_date.strftime("%Y-%m-%d")
+
+    range_start = selected_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    range_end = range_start + timedelta(days=1)
+
     db = get_db()
     rows = db.execute(
         f"""
-        SELECT TOP 200 loss_date_time, loss_duration, shift_working, typename,
+        SELECT loss_date_time, loss_duration, typename,
                loss_lossID_id, loss_comments
         FROM {SQL_TABLE}
+        WHERE loss_date_time >= ? AND loss_date_time < ?
         ORDER BY loss_date_time DESC
-        """
+        """,
+        (range_start, range_end),
     ).fetchall()
 
     computed = []
@@ -172,7 +181,6 @@ def entries():
                 "start": start_time.strftime("%m/%d/%Y %I:%M:%S %p"),
                 "end": end_time.strftime("%m/%d/%Y %I:%M:%S %p"),
                 "total_loss": round(row.loss_duration / 60, 2),
-                "shift_working": row.shift_working,
                 "typename": row.typename,
                 "loss_description": LOSS_ID_CHOICES.get(
                     row.loss_lossID_id, row.loss_lossID_id
@@ -181,7 +189,7 @@ def entries():
             }
         )
 
-    return render_template("entries.html", entries=computed)
+    return render_template("entries.html", entries=computed, selected_date=date_str)
 
 
 if __name__ == "__main__":
