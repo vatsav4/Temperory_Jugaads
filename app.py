@@ -9,11 +9,11 @@ app = Flask(__name__)
 # --- SQL Server connection -------------------------------------------------
 # Same server used previously by the loss_logger app.
 SQL_SERVER = "172.25.250.70"
-SQL_DATABASE = "industry4_157"
-SQL_TABLE = "dbo.loss_table"
+SQL_DATABASE = "Industry4_157"
+SQL_TABLE = "dbo.smartapp_lossmapp_loss_table"
 
-SQL_USERNAME = os.environ.get("SQL_USERNAME", "REPLACE_USERNAME")
-SQL_PASSWORD = os.environ.get("SQL_PASSWORD", "REPLACE_PASSWORD")
+SQL_USERNAME = os.environ.get("SQL_USERNAME", "sa")
+SQL_PASSWORD = os.environ.get("SQL_PASSWORD", "col123")
 
 ODBC_DRIVER = "ODBC Driver 17 for SQL Server"
 
@@ -149,7 +149,7 @@ def fetch_entries_for_date(date_str):
         SELECT loss_date_time, loss_duration, typename,
                loss_lossID_id, loss_comments
         FROM {SQL_TABLE}
-        WHERE loss_date_time >= ? AND loss_date_time < ?
+        WHERE loss_date_time >= ? AND loss_date_time < ? and shop_id_id = '3'
         ORDER BY loss_date_time DESC
         """,
         (range_start, range_end),
