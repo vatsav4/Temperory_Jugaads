@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 import pyodbc
 from flask import Flask, g, redirect, render_template, request, url_for
@@ -92,13 +92,15 @@ END
 """
 
 
-def _parse_datetime_local(raw):
-    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"):
-        try:
-            return datetime.strptime(raw, fmt)
-        except ValueError:
-            continue
-    raise ValueError("Invalid date/time.")
+def _parse_time_of_day(raw, label):
+    digits = raw.strip().replace(":", "").replace(" ", "")
+    if not digits.isdigit() or len(digits) not in (3, 4):
+        raise ValueError(f"{label} must be a time like 0754 or 754.")
+    digits = digits.zfill(4)
+    hh, mm = int(digits[:2]), int(digits[2:])
+    if not (0 <= hh <= 23 and 0 <= mm <= 59):
+        raise ValueError(f"{label} is not a valid 24-hour time.")
+    return time(hh, mm)
 
 
 def connect_db():
@@ -194,10 +196,21 @@ def index():
             if loss_id not in LOSS_ID_CHOICES:
                 raise ValueError("Invalid loss type selected.")
 
-            start_time = _parse_datetime_local(request.form["start_time"])
-            end_time = _parse_datetime_local(request.form["end_time"])
+            try:
+                entry_date = datetime.strptime(
+                    request.form["entry_date"], "%Y-%m-%d"
+                ).date()
+            except ValueError:
+                raise ValueError("Date is required.")
+
+            start_clock = _parse_time_of_day(request.form["start_time"], "Loss Start")
+            end_clock = _parse_time_of_day(request.form["end_time"], "Loss End")
+            start_time = datetime.combine(entry_date, start_clock)
+            end_time = datetime.combine(entry_date, end_clock)
             if end_time <= start_time:
-                raise ValueError("Loss End must be after Loss Start.")
+                # Loss End clock-time is earlier than Start - treat it as
+                # having rolled past midnight rather than an error.
+                end_time += timedelta(days=1)
             loss_duration_seconds = round((end_time - start_time).total_seconds())
 
             extra_values = {}
