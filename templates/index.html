@@ -1,14 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Loss Log{% endblock %}
 {% block content %}
-  {% if saved %}
-    <p class="success">✓ Entry saved. Showing entries for {{ selected_date }}.</p>
-  {% endif %}
-  {% if error %}
-    <p class="error">{{ error }}</p>
+  {% if saved or error %}
+  <div class="banner-row">
+    {% if saved %}
+      <p class="success">✓ Entry saved. Showing entries for {{ selected_date }}.</p>
+    {% endif %}
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+  </div>
   {% endif %}
 
-  <section class="card">
+  <div class="layout">
+  <section class="card entries-card">
     <div class="card-header">
       <h2>Loss Entries</h2>
       <form method="get" class="date-filter">
@@ -52,12 +57,13 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card add-entry-card">
     <div class="card-header">
       <h2>Add New Entry</h2>
     </div>
 
     <form method="post" class="loss-form">
+      <div class="form-scroll">
       <div class="form-grid">
         <div class="field">
           <label for="station">Station</label>
@@ -122,10 +128,12 @@
           <input type="text" id="vc_model" name="vc_model" placeholder="e.g. 51651757000R" required>
         </div>
       </div>
+      </div>
 
       <button type="submit" class="save-btn">Save Entry</button>
     </form>
   </section>
+  </div>
 
   <script>
     const dateInput = document.getElementById('entry_date');

@@ -2,34 +2,56 @@
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
   margin: 0;
   background: #eef1f6;
   color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* the whole page never scrolls on desktop - only individual panels do */
 }
 
 header {
+  flex: 0 0 auto;
   background: linear-gradient(135deg, #1f2a44 0%, #2c3b62 100%);
   color: #fff;
-  padding: 1.5rem 2rem;
+  padding: 0.75rem 2rem;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 header h1 {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 main {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 96%;
   max-width: 1800px;
-  margin: 1.5rem auto;
-  padding: 0 0.5rem 3rem;
+  margin: 0.75rem auto;
+  padding: 0 0.5rem;
   display: flex;
   flex-direction: column;
+  gap: 0.65rem;
+  overflow: hidden;
+}
+
+.banner-row {
+  flex: 0 0 auto;
+}
+
+.layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
   gap: 1.5rem;
 }
 
@@ -37,28 +59,43 @@ main {
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-  padding: 1.5rem 1.75rem 1.75rem;
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.entries-card {
+  flex: 1 1 56%;
+}
+
+.add-entry-card {
+  flex: 1 1 44%;
 }
 
 .card-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.75rem;
 }
 
 .card-header h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   color: #1f2a44;
 }
 
 /* --- entries table --- */
 
 .table-wrap {
-  overflow-x: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 table {
@@ -69,12 +106,14 @@ table {
 
 th, td {
   text-align: left;
-  padding: 0.65rem 0.75rem;
+  padding: 0.55rem 0.6rem;
   border-bottom: 1px solid #edf0f5;
   white-space: nowrap;
 }
 
 th {
+  position: sticky;
+  top: 0;
   background: #f4f6fb;
   color: #4a5568;
   font-weight: 700;
@@ -132,12 +171,23 @@ tbody tr:hover {
 
 .loss-form {
   max-width: 1100px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.5rem;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.25rem 1.5rem;
+  gap: 0.7rem 1.5rem;
 }
 
 .field.full-width {
@@ -147,9 +197,9 @@ tbody tr:hover {
 .field label {
   display: block;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: #2d3748;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.3rem;
 }
 
 .field input[type="text"],
@@ -157,10 +207,10 @@ tbody tr:hover {
 .field input[type="time"],
 .field select {
   width: 100%;
-  padding: 0.7rem 0.8rem;
+  padding: 0.5rem 0.7rem;
   border: 1px solid #d3d9e3;
   border-radius: 8px;
-  font-size: 1.05rem;
+  font-size: 1rem;
   background: #fff;
   color: #1a1a1a;
 }
@@ -173,12 +223,12 @@ tbody tr:hover {
 }
 
 .now-btn {
-  padding: 0.7rem 1rem;
+  padding: 0.5rem 1rem;
   border: 1px solid #1f6feb;
   background: #eaf2ff;
   color: #1f6feb;
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   width: 100%;
@@ -189,7 +239,7 @@ tbody tr:hover {
 }
 
 .now-btn-standalone {
-  margin-top: 1.7rem;
+  margin-top: 1.5rem;
 }
 
 /* --- loss type pills --- */
@@ -197,7 +247,7 @@ tbody tr:hover {
 .loss-type-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .loss-type-row input[type="radio"] {
@@ -210,10 +260,10 @@ tbody tr:hover {
 .loss-type-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.55rem 1rem;
+  padding: 0.4rem 0.85rem;
   border: 2px solid #d3d9e3;
   border-radius: 999px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #4a5568;
   cursor: pointer;
@@ -245,7 +295,8 @@ tbody tr:hover {
 }
 
 .save-btn {
-  margin-top: 1.75rem;
+  flex: 0 0 auto;
+  margin-top: 1rem;
   width: 100%;
   padding: 1rem;
   font-size: 1.15rem;
@@ -267,42 +318,71 @@ tbody tr:hover {
   color: #9a2318;
   background: #fce8e6;
   border: 1px solid #f3c6c1;
-  padding: 0.85rem 1.1rem;
+  padding: 0.7rem 1.1rem;
   border-radius: 8px;
   font-weight: 600;
-  width: 96%;
-  max-width: 1800px;
-  margin: 0 auto;
+  margin: 0;
 }
 
 .success {
   color: #166534;
   background: #e6f6ea;
   border: 1px solid #b8e6c4;
-  padding: 0.85rem 1.1rem;
+  padding: 0.7rem 1.1rem;
   border-radius: 8px;
   font-weight: 600;
-  width: 96%;
-  max-width: 1800px;
-  margin: 0 auto;
+  margin: 0;
 }
 
-.error + .card,
-.success + .card {
-  margin-top: 1.25rem;
-}
+@media (max-width: 900px) {
+  html, body {
+    height: auto;
+  }
 
-@media (max-width: 640px) {
+  body {
+    display: block;
+    overflow: visible;
+  }
+
+  main {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .layout {
+    display: block;
+    height: auto;
+  }
+
+  .card {
+    display: block;
+    height: auto;
+    margin-bottom: 1.25rem;
+    padding: 1.1rem 1.1rem 1.4rem;
+  }
+
+  .table-wrap {
+    overflow-y: visible;
+  }
+
+  .loss-form {
+    display: block;
+    height: auto;
+    max-width: none;
+  }
+
+  .form-scroll {
+    overflow-y: visible;
+    padding-right: 0;
+  }
+
   header {
     padding: 1.1rem 1.25rem;
   }
 
   main {
     margin: 1rem auto;
-  }
-
-  .card {
-    padding: 1.1rem 1.1rem 1.4rem;
   }
 
   .form-grid {
