@@ -52,23 +52,39 @@ python app.py
 
 Then open http://127.0.0.1:5051 in a browser (see below for why not 5000).
 
-Single page (`/`):
+## Using the page
 
-- **Entries table**: pick a date (defaults to today) to see all rows in
-  `loss_table` for that day, in the same Start/End/Total Loss/... layout as
-  the dashboard.
-- **+ Add New Entry** (expandable section below the table): Station, Loss
-  Type (tap one of the 8 cards), a Date field, and Loss Start / Loss End
-  typed as 24-hour digits (`0754`, `754`, or `07:54` all work — no calendar
-  picker), each with a one-tap "Now" button. Duration is computed live; if
-  End's clock time is earlier than Start's, it's treated as crossing
-  midnight into the next day rather than an error. `log_date_time` is set
-  automatically to the moment you hit Save; `shop_id_id` is set to `3`
-  automatically.
-- **Additional SQL fields**: the rest of `loss_table`'s columns
-  (`messageno`, `classname`, `loss_plctext`, `loss_plcclass`, `loss_plctype`,
-  `revision`, `counter`, `action_flag`, `loss_assignid_id`,
-  `loss_autofields_id`, `vc_model`) are exposed as plain inputs at the
-  bottom of the form — fill in whatever you know for that event; anything
-  left blank is stored as `NULL`. After saving you're taken back to the
-  list for that entry's date so you can confirm it landed correctly.
+Single page (`/`), built for quick production-floor entry:
+
+**Loss Entries** (top card) — pick a date (defaults to today) to see all rows
+in `loss_table` for that day, in the same Start/End/Total Loss/... layout as
+the dashboard.
+
+**Add New Entry** (bottom card) — the only fields the person entering data
+has to think about:
+
+| Field | How it's entered | Stored as |
+|---|---|---|
+| Station | Dropdown, 1–12 | `typename = "Station-<n>"` |
+| Class Name | Dropdown: Process Call / Quality Call / Material Call / Equipment Call / Others | `classname`, and copied into `loss_plctext` |
+| Loss Type | Row of tap/click pills (8 fixed types) | `loss_lossID_id` |
+| Date | Date picker | — |
+| Loss Start / Loss End | Native time pickers; "Use Current Date & Time" fills Date + End with now | `loss_date_time` (End) and `loss_duration` (computed) |
+| Reason | Free text, **required** | `loss_comments` |
+| VC Number | Free text, **required** | `vc_model` |
+
+If Loss End's clock time is earlier than Loss Start's, it's treated as
+crossing midnight into the next day rather than a validation error.
+
+Everything else is filled in automatically, with no field shown for it:
+
+- `messageno` = 210, `loss_plcclass` = 64, `loss_plctype` = 1009,
+  `revision` = 0, `action_flag` = 1, `loss_assignid_id` = 15 — fixed
+  constants in `app.py`.
+- `counter` = `MAX(counter)` currently in `loss_table`, plus 1.
+- `log_date_time` = the moment the entry is saved.
+- `shop_id_id` = 3.
+- `loss_autofields_id` = `NULL`.
+
+After saving you're taken back to the entries list for that entry's date, so
+you can immediately confirm it landed correctly.

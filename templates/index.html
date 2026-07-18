@@ -2,158 +2,171 @@
 {% block title %}Loss Log{% endblock %}
 {% block content %}
   {% if saved %}
-    <p class="success">Entry saved. Showing entries for {{ selected_date }}.</p>
+    <p class="success">✓ Entry saved. Showing entries for {{ selected_date }}.</p>
   {% endif %}
   {% if error %}
     <p class="error">{{ error }}</p>
   {% endif %}
 
-  <form method="get" class="date-filter">
-    <label for="date">Date</label>
-    <input type="date" id="date" name="date" value="{{ selected_date }}">
-    <button type="submit">Show</button>
-  </form>
+  <section class="card">
+    <div class="card-header">
+      <h2>Loss Entries</h2>
+      <form method="get" class="date-filter">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="date" value="{{ selected_date }}">
+        <button type="submit">Show</button>
+      </form>
+    </div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Start</th>
-          <th>End</th>
-          <th>Total Loss</th>
-          <th>Station</th>
-          <th>Loss_Description</th>
-          <th>Reason</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in entries %}
-        <tr>
-          <td>{{ e.start }}</td>
-          <td>{{ e.end }}</td>
-          <td>{{ e.total_loss }}</td>
-          <td>{{ e.typename }}</td>
-          <td>{{ e.loss_description }}</td>
-          <td>{{ e.loss_comments }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6">No entries for {{ selected_date }}.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Start</th>
+            <th>End</th>
+            <th>Total Loss</th>
+            <th>Station</th>
+            <th>Class</th>
+            <th>Loss Type</th>
+            <th>Reason</th>
+            <th>VC Number</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entries %}
+          <tr>
+            <td>{{ e.start }}</td>
+            <td>{{ e.end }}</td>
+            <td>{{ e.total_loss }}</td>
+            <td>{{ e.typename }}</td>
+            <td>{{ e.classname }}</td>
+            <td>{{ e.loss_description }}</td>
+            <td>{{ e.loss_comments }}</td>
+            <td>{{ e.vc_model }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="empty-row">No entries for {{ selected_date }}.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-  <details class="add-entry" {% if error %}open{% endif %}>
-    <summary>+ Add New Entry</summary>
+  <section class="card">
+    <div class="card-header">
+      <h2>Add New Entry</h2>
+    </div>
 
     <form method="post" class="loss-form">
-      <label for="typename">Station</label>
-      <input type="text" id="typename" name="typename" placeholder="e.g. Type 1009" required>
-
-      <label>Loss Type</label>
-      <div class="loss-type-grid">
-        {% for id, text in loss_id_choices.items() %}
-        <input type="radio" id="loss_id_{{ id }}" name="loss_id" value="{{ id }}" required>
-        <label for="loss_id_{{ id }}" class="loss-type-card">{{ text }}</label>
-        {% endfor %}
-      </div>
-
-      <label for="entry_date">Date</label>
-      <input type="date" id="entry_date" name="entry_date" value="{{ selected_date }}" required>
-
-      <label for="start_time">Loss Start <span class="optional">(24h, e.g. 0754)</span></label>
-      <div class="time-row">
-        <input type="text" id="start_time" name="start_time" inputmode="numeric"
-               placeholder="HHMM" maxlength="5" autocomplete="off" required>
-        <button type="button" class="now-btn" data-target="start_time">Now</button>
-      </div>
-
-      <label for="end_time">Loss End <span class="optional">(24h, e.g. 0801)</span></label>
-      <div class="time-row">
-        <input type="text" id="end_time" name="end_time" inputmode="numeric"
-               placeholder="HHMM" maxlength="5" autocomplete="off" required>
-        <button type="button" class="now-btn" data-target="end_time">Now</button>
-      </div>
-
-      <p class="hint" id="computed-duration"></p>
-
-      <label for="loss_comments">Reason <span class="optional">(optional)</span></label>
-      <input type="text" id="loss_comments" name="loss_comments" placeholder="e.g. Battery shortage">
-
-      <h3 class="section-heading">Additional SQL fields</h3>
-      <p class="hint">Fill in whatever you know for this event — leave blank for NULL.</p>
-
-      <div class="extra-fields-grid">
-        {% for field in extra_int_fields %}
-        <div class="extra-field">
-          <label for="{{ field }}">{{ field_labels.get(field, field) }}</label>
-          <input type="text" inputmode="numeric" id="{{ field }}" name="{{ field }}">
+      <div class="form-grid">
+        <div class="field">
+          <label for="station">Station</label>
+          <select id="station" name="station" required>
+            <option value="" disabled selected>Select…</option>
+            {% for n in station_choices %}
+            <option value="{{ n }}">Station-{{ n }}</option>
+            {% endfor %}
+          </select>
         </div>
-        {% endfor %}
-        {% for field in extra_text_fields %}
-        <div class="extra-field">
-          <label for="{{ field }}">{{ field_labels.get(field, field) }}</label>
-          <input type="text" id="{{ field }}" name="{{ field }}">
+
+        <div class="field">
+          <label for="classname">Class Name</label>
+          <select id="classname" name="classname" required>
+            <option value="" disabled selected>Select…</option>
+            {% for c in classname_choices %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
         </div>
-        {% endfor %}
+
+        <div class="field full-width">
+          <label>Loss Type</label>
+          <div class="loss-type-row">
+            {% for id, text in loss_id_choices.items() %}
+            <input type="radio" id="loss_id_{{ id }}" name="loss_id" value="{{ id }}" required>
+            <label for="loss_id_{{ id }}" class="loss-type-pill">{{ text }}</label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="entry_date">Date</label>
+          <input type="date" id="entry_date" name="entry_date" value="{{ selected_date }}" required>
+        </div>
+
+        <div class="field">
+          <button type="button" class="now-btn now-btn-standalone" id="now-btn">Use Current Date &amp; Time</button>
+        </div>
+
+        <div class="field">
+          <label for="start_time">Loss Start</label>
+          <input type="time" id="start_time" name="start_time" required>
+        </div>
+
+        <div class="field">
+          <label for="end_time">Loss End</label>
+          <input type="time" id="end_time" name="end_time" required>
+        </div>
+
+        <div class="field full-width">
+          <p class="hint" id="computed-duration"></p>
+        </div>
+
+        <div class="field full-width">
+          <label for="loss_comments">Reason</label>
+          <input type="text" id="loss_comments" name="loss_comments" placeholder="e.g. Battery shortage" required>
+        </div>
+
+        <div class="field full-width">
+          <label for="vc_model">VC Number</label>
+          <input type="text" id="vc_model" name="vc_model" placeholder="e.g. 51651757000R" required>
+        </div>
       </div>
 
       <button type="submit" class="save-btn">Save Entry</button>
     </form>
-  </details>
+  </section>
 
   <script>
     const dateInput = document.getElementById('entry_date');
     const startInput = document.getElementById('start_time');
     const endInput = document.getElementById('end_time');
     const durationOut = document.getElementById('computed-duration');
+    const nowBtn = document.getElementById('now-btn');
 
     function pad(n) {
       return n.toString().padStart(2, '0');
     }
 
-    function parseHHMM(raw) {
-      const digits = raw.replace(/[^0-9]/g, '');
-      if (digits.length < 3 || digits.length > 4) return null;
-      const padded = digits.length === 3 ? '0' + digits : digits;
-      const hh = parseInt(padded.slice(0, 2), 10);
-      const mm = parseInt(padded.slice(2), 10);
-      if (hh > 23 || mm > 59) return null;
+    nowBtn.addEventListener('click', () => {
+      const now = new Date();
+      dateInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      endInput.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      updateDuration();
+    });
+
+    function toMinutes(value) {
+      if (!value) return null;
+      const [hh, mm] = value.split(':').map(Number);
+      if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
       return hh * 60 + mm;
     }
 
-    document.querySelectorAll('.now-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const now = new Date();
-        const target = document.getElementById(btn.dataset.target);
-        target.value = pad(now.getHours()) + pad(now.getMinutes());
-        dateInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-        updateDuration();
-      });
-    });
-
     function updateDuration() {
-      const startMin = parseHHMM(startInput.value);
-      const endMin = parseHHMM(endInput.value);
+      const startMin = toMinutes(startInput.value);
+      const endMin = toMinutes(endInput.value);
       if (startMin === null || endMin === null) {
         durationOut.textContent = '';
-        durationOut.classList.remove('warning');
         return;
       }
       let diff = endMin - startMin;
       if (diff <= 0) diff += 24 * 60; // rolled past midnight
       const hours = Math.floor(diff / 60);
       const minutes = diff % 60;
-      durationOut.classList.remove('warning');
       durationOut.textContent = `Duration: ${hours} hr ${minutes} min`;
     }
 
-    startInput.addEventListener('input', () => {
-      updateDuration();
-      if (startInput.value.replace(/[^0-9]/g, '').length >= 4) {
-        endInput.focus();
-      }
-    });
+    startInput.addEventListener('input', updateDuration);
     endInput.addEventListener('input', updateDuration);
   </script>
 {% endblock %}
