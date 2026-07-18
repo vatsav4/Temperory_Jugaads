@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 
 import pyodbc
 from flask import Flask, g, redirect, render_template, request, url_for
@@ -20,6 +20,9 @@ ODBC_DRIVER = "ODBC Driver 17 for SQL Server"
 # shop_id_id is fixed for this page (this form only serves one shop/line).
 SHOP_ID = 3
 
+# Stations 1-12, stored as "Station-<n>".
+STATION_CHOICES = list(range(1, 13))
+
 # The 8 loss types (loss_lossID_id -> display text), from the lookup table.
 LOSS_ID_CHOICES = {
     1: "Breakdown/ Facility Constraint",
@@ -32,37 +35,22 @@ LOSS_ID_CHOICES = {
     32: "Material Supply",
 }
 
-# Remaining columns on dbo.loss_table that don't have an obvious
-# manual-entry value. Exposed directly on the form so the person entering
-# data can type in the real values, instead of the app guessing defaults.
-EXTRA_INT_FIELDS = [
-    "messageno",
-    "loss_plcclass",
-    "loss_plctype",
-    "revision",
-    "counter",
-    "action_flag",
-    "loss_assignid_id",
+CLASSNAME_CHOICES = [
+    "Process Call",
+    "Quality Call",
+    "Material Call",
+    "Equipment Call",
+    "Others",
 ]
-EXTRA_TEXT_FIELDS = [
-    "classname",
-    "loss_plctext",
-    "loss_autofields_id",
-    "vc_model",
-]
-FIELD_LABELS = {
-    "messageno": "Message No.",
-    "loss_plcclass": "PLC Class",
-    "loss_plctype": "PLC Type",
-    "revision": "Revision",
-    "counter": "Counter",
-    "action_flag": "Action Flag",
-    "loss_assignid_id": "Assign ID",
-    "classname": "Class Name",
-    "loss_plctext": "PLC Text",
-    "loss_autofields_id": "Auto Fields ID",
-    "vc_model": "VC Model",
-}
+
+# Fixed values for legacy/PLC-sourced columns that production entry doesn't
+# need to think about.
+FIXED_MESSAGE_NO = 210
+FIXED_PLC_CLASS = 64
+FIXED_PLC_TYPE = 1009
+FIXED_REVISION = 0
+FIXED_ACTION_FLAG = 1
+FIXED_ASSIGN_ID = 15
 
 CREATE_TABLE_SQL = f"""
 IF OBJECT_ID(N'{SQL_TABLE}', N'U') IS NULL
@@ -90,17 +78,6 @@ BEGIN
     )
 END
 """
-
-
-def _parse_time_of_day(raw, label):
-    digits = raw.strip().replace(":", "").replace(" ", "")
-    if not digits.isdigit() or len(digits) not in (3, 4):
-        raise ValueError(f"{label} must be a time like 0754 or 754.")
-    digits = digits.zfill(4)
-    hh, mm = int(digits[:2]), int(digits[2:])
-    if not (0 <= hh <= 23 and 0 <= mm <= 59):
-        raise ValueError(f"{label} is not a valid 24-hour time.")
-    return time(hh, mm)
 
 
 def connect_db():
@@ -135,6 +112,12 @@ def init_db():
     conn.close()
 
 
+def next_counter(db):
+    row = db.execute(f"SELECT MAX(counter) FROM {SQL_TABLE}").fetchone()
+    last = row[0] if row else None
+    return (last or 0) + 1
+
+
 def fetch_entries_for_date(date_str):
     try:
         selected_date = datetime.strptime(date_str, "%Y-%m-%d")
@@ -149,7 +132,7 @@ def fetch_entries_for_date(date_str):
     rows = db.execute(
         f"""
         SELECT loss_date_time, loss_duration, typename,
-               loss_lossID_id, loss_comments
+               loss_lossID_id, loss_comments, classname, vc_model
         FROM {SQL_TABLE}
         WHERE loss_date_time >= ? AND loss_date_time < ?
         ORDER BY loss_date_time DESC
@@ -163,14 +146,16 @@ def fetch_entries_for_date(date_str):
         start_time = end_time - timedelta(seconds=row.loss_duration)
         computed.append(
             {
-                "start": start_time.strftime("%m/%d/%Y %I:%M:%S %p"),
-                "end": end_time.strftime("%m/%d/%Y %I:%M:%S %p"),
+                "start": start_time.strftime("%m/%d/%Y %I:%M %p"),
+                "end": end_time.strftime("%m/%d/%Y %I:%M %p"),
                 "total_loss": round(row.loss_duration / 60, 2),
                 "typename": row.typename,
                 "loss_description": LOSS_ID_CHOICES.get(
                     row.loss_lossID_id, row.loss_lossID_id
                 ),
                 "loss_comments": row.loss_comments,
+                "classname": row.classname,
+                "vc_model": row.vc_model,
             }
         )
     return date_str, computed
@@ -184,62 +169,73 @@ def index():
 
     if request.method == "POST":
         try:
-            typename = request.form["typename"].strip()
-            loss_id_raw = request.form.get("loss_id", "")
-            loss_comments = request.form.get("loss_comments", "").strip()
+            station_raw = request.form.get("station", "")
+            if not station_raw:
+                raise ValueError("Please select a Station.")
+            station_no = int(station_raw)
+            if station_no not in STATION_CHOICES:
+                raise ValueError("Invalid Station selected.")
+            typename = f"Station-{station_no}"
 
-            if not typename:
-                raise ValueError("Station is required.")
+            classname = request.form.get("classname", "")
+            if classname not in CLASSNAME_CHOICES:
+                raise ValueError("Please select a Class Name.")
+
+            loss_id_raw = request.form.get("loss_id", "")
             if not loss_id_raw:
-                raise ValueError("Please select a loss type.")
+                raise ValueError("Please select a Loss Type.")
             loss_id = int(loss_id_raw)
             if loss_id not in LOSS_ID_CHOICES:
-                raise ValueError("Invalid loss type selected.")
+                raise ValueError("Invalid Loss Type selected.")
 
+            loss_comments = request.form.get("loss_comments", "").strip()
+            if not loss_comments:
+                raise ValueError("Reason is required.")
+
+            vc_model = request.form.get("vc_model", "").strip()
+            if not vc_model:
+                raise ValueError("VC Number is required.")
+
+            entry_date = request.form.get("entry_date", "")
+            start_raw = request.form.get("start_time", "")
+            end_raw = request.form.get("end_time", "")
             try:
-                entry_date = datetime.strptime(
-                    request.form["entry_date"], "%Y-%m-%d"
-                ).date()
+                start_time = datetime.strptime(
+                    f"{entry_date} {start_raw}", "%Y-%m-%d %H:%M"
+                )
+                end_time = datetime.strptime(
+                    f"{entry_date} {end_raw}", "%Y-%m-%d %H:%M"
+                )
             except ValueError:
-                raise ValueError("Date is required.")
+                raise ValueError("Please provide a valid Date, Loss Start and Loss End.")
 
-            start_clock = _parse_time_of_day(request.form["start_time"], "Loss Start")
-            end_clock = _parse_time_of_day(request.form["end_time"], "Loss End")
-            start_time = datetime.combine(entry_date, start_clock)
-            end_time = datetime.combine(entry_date, end_clock)
             if end_time <= start_time:
-                # Loss End clock-time is earlier than Start - treat it as
-                # having rolled past midnight rather than an error.
+                # End clock-time earlier than Start - treat as crossing
+                # midnight into the next day rather than an error.
                 end_time += timedelta(days=1)
             loss_duration_seconds = round((end_time - start_time).total_seconds())
 
-            extra_values = {}
-            for field in EXTRA_INT_FIELDS:
-                raw = request.form.get(field, "").strip()
-                if raw:
-                    try:
-                        extra_values[field] = int(raw)
-                    except ValueError:
-                        raise ValueError(f"{field} must be a whole number.")
-                else:
-                    extra_values[field] = None
-            for field in EXTRA_TEXT_FIELDS:
-                raw = request.form.get(field, "").strip()
-                extra_values[field] = raw or None
+            db = get_db()
+            counter = next_counter(db)
 
             columns = [
-                "loss_date_time", "log_date_time", "typename", "loss_duration",
-                "loss_comments", "loss_lossID_id", "shop_id_id",
-            ] + EXTRA_INT_FIELDS + EXTRA_TEXT_FIELDS
+                "loss_date_time", "log_date_time", "typename", "classname",
+                "loss_duration", "loss_comments", "loss_plctext",
+                "loss_plcclass", "loss_plctype", "revision", "counter",
+                "action_flag", "loss_assignid_id", "loss_lossID_id",
+                "shop_id_id", "loss_autofields_id", "vc_model",
+                "messageno",
+            ]
             values = (
-                end_time, datetime.now(), typename, loss_duration_seconds,
-                loss_comments, loss_id, SHOP_ID,
-            ) + tuple(extra_values[f] for f in EXTRA_INT_FIELDS) + tuple(
-                extra_values[f] for f in EXTRA_TEXT_FIELDS
+                end_time, datetime.now(), typename, classname,
+                loss_duration_seconds, loss_comments, classname,
+                FIXED_PLC_CLASS, FIXED_PLC_TYPE, FIXED_REVISION, counter,
+                FIXED_ACTION_FLAG, FIXED_ASSIGN_ID, loss_id,
+                SHOP_ID, None, vc_model,
+                FIXED_MESSAGE_NO,
             )
             placeholders = ", ".join(["?"] * len(columns))
 
-            db = get_db()
             db.execute(
                 f"INSERT INTO {SQL_TABLE} ({', '.join(columns)}) VALUES ({placeholders})",
                 values,
@@ -257,12 +253,11 @@ def index():
         "index.html",
         error=error,
         saved=saved,
+        station_choices=STATION_CHOICES,
+        classname_choices=CLASSNAME_CHOICES,
         loss_id_choices=LOSS_ID_CHOICES,
         selected_date=date_str,
         entries=entries,
-        extra_int_fields=EXTRA_INT_FIELDS,
-        extra_text_fields=EXTRA_TEXT_FIELDS,
-        field_labels=FIELD_LABELS,
     )
 
 
