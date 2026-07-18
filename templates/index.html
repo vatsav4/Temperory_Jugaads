@@ -58,15 +58,20 @@
         {% endfor %}
       </div>
 
-      <label for="start_time">Loss Start</label>
+      <label for="entry_date">Date</label>
+      <input type="date" id="entry_date" name="entry_date" value="{{ selected_date }}" required>
+
+      <label for="start_time">Loss Start <span class="optional">(24h, e.g. 0754)</span></label>
       <div class="time-row">
-        <input type="datetime-local" id="start_time" name="start_time" step="60" required>
+        <input type="text" id="start_time" name="start_time" inputmode="numeric"
+               placeholder="HHMM" maxlength="5" autocomplete="off" required>
         <button type="button" class="now-btn" data-target="start_time">Now</button>
       </div>
 
-      <label for="end_time">Loss End</label>
+      <label for="end_time">Loss End <span class="optional">(24h, e.g. 0801)</span></label>
       <div class="time-row">
-        <input type="datetime-local" id="end_time" name="end_time" step="60" required>
+        <input type="text" id="end_time" name="end_time" inputmode="numeric"
+               placeholder="HHMM" maxlength="5" autocomplete="off" required>
         <button type="button" class="now-btn" data-target="end_time">Now</button>
       </div>
 
@@ -98,50 +103,57 @@
   </details>
 
   <script>
+    const dateInput = document.getElementById('entry_date');
     const startInput = document.getElementById('start_time');
     const endInput = document.getElementById('end_time');
     const durationOut = document.getElementById('computed-duration');
 
-    function toLocalInputValue(date) {
-      const offsetMs = date.getTimezoneOffset() * 60000;
-      return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+    function pad(n) {
+      return n.toString().padStart(2, '0');
+    }
+
+    function parseHHMM(raw) {
+      const digits = raw.replace(/[^0-9]/g, '');
+      if (digits.length < 3 || digits.length > 4) return null;
+      const padded = digits.length === 3 ? '0' + digits : digits;
+      const hh = parseInt(padded.slice(0, 2), 10);
+      const mm = parseInt(padded.slice(2), 10);
+      if (hh > 23 || mm > 59) return null;
+      return hh * 60 + mm;
     }
 
     document.querySelectorAll('.now-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const target = document.getElementById(btn.dataset.target);
         const now = new Date();
-        now.setSeconds(0, 0);
-        target.value = toLocalInputValue(now);
+        const target = document.getElementById(btn.dataset.target);
+        target.value = pad(now.getHours()) + pad(now.getMinutes());
+        dateInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
         updateDuration();
       });
     });
 
     function updateDuration() {
-      if (!startInput.value || !endInput.value) {
+      const startMin = parseHHMM(startInput.value);
+      const endMin = parseHHMM(endInput.value);
+      if (startMin === null || endMin === null) {
         durationOut.textContent = '';
+        durationOut.classList.remove('warning');
         return;
       }
-      const start = new Date(startInput.value);
-      const end = new Date(endInput.value);
-      const diffMs = end - start;
-      if (isNaN(diffMs)) {
-        durationOut.textContent = '';
-        return;
-      }
-      if (diffMs <= 0) {
-        durationOut.textContent = 'End time must be after start time.';
-        durationOut.classList.add('warning');
-        return;
-      }
+      let diff = endMin - startMin;
+      if (diff <= 0) diff += 24 * 60; // rolled past midnight
+      const hours = Math.floor(diff / 60);
+      const minutes = diff % 60;
       durationOut.classList.remove('warning');
-      const totalSeconds = Math.round(diffMs / 1000);
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = totalSeconds % 60;
-      durationOut.textContent = `Duration: ${minutes} min ${seconds} sec`;
+      durationOut.textContent = `Duration: ${hours} hr ${minutes} min`;
     }
 
-    startInput.addEventListener('input', updateDuration);
+    startInput.addEventListener('input', () => {
+      updateDuration();
+      if (startInput.value.replace(/[^0-9]/g, '').length >= 4) {
+        endInput.focus();
+      }
+    });
     endInput.addEventListener('input', updateDuration);
   </script>
 {% endblock %}

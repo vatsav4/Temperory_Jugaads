@@ -61,7 +61,7 @@ main {
 }
 
 .loss-form input[type="text"],
-.loss-form input[type="datetime-local"] {
+.loss-form input[type="date"] {
   padding: 0.75rem;
   border: 1px solid #ccc;
   border-radius: 6px;

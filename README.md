@@ -58,8 +58,11 @@ Single page (`/`):
   `loss_table` for that day, in the same Start/End/Total Loss/... layout as
   the dashboard.
 - **+ Add New Entry** (expandable section below the table): Station, Loss
-  Type (tap one of the 8 cards), Loss Start / Loss End (with one-tap "Now"
-  buttons — duration is computed live), and Reason. `log_date_time` is set
+  Type (tap one of the 8 cards), a Date field, and Loss Start / Loss End
+  typed as 24-hour digits (`0754`, `754`, or `07:54` all work — no calendar
+  picker), each with a one-tap "Now" button. Duration is computed live; if
+  End's clock time is earlier than Start's, it's treated as crossing
+  midnight into the next day rather than an error. `log_date_time` is set
   automatically to the moment you hit Save; `shop_id_id` is set to `3`
   automatically.
 - **Additional SQL fields**: the rest of `loss_table`'s columns
